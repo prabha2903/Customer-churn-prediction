@@ -23,6 +23,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.predict import predict_bulk
 import pandas as pd
 import plotly.express as px
+import numpy as np
 import config
 from app.utils import get_artifacts, get_processed_dataset, risk_badge
 from src.eda import (
@@ -322,4 +323,71 @@ with tab_bulk:
 # TAB 4: FEATURE IMPORTANCE  (placeholder — built in Module 7d)
 # =========================================================
 with tab_importance:
-    st.info("🚧 Coming in the next step: feature importance visualization.")
+    st.subheader("What Drives Churn? — Feature Importance")
+    st.caption(
+        f"Based on the deployed model: **{type(artifacts['model']).__name__}**"
+    )
+
+    model = artifacts["model"]
+    feature_names = artifacts["feature_names"]
+
+    # --- Extract importance depending on model type ---
+    if hasattr(model, "feature_importances_"):
+        # Tree-based models: Random Forest, Decision Tree, XGBoost
+        importance_values = model.feature_importances_
+        importance_type = "Impurity-based importance (higher = more influential in splits)"
+    elif hasattr(model, "coef_"):
+        # Logistic Regression: use absolute coefficient magnitude
+        importance_values = np.abs(model.coef_[0])
+        importance_type = "Absolute coefficient magnitude (scaled features)"
+    else:
+        importance_values = None
+        importance_type = None
+
+    if importance_values is None:
+        st.warning("⚠️ Feature importance is not available for this model type.")
+    else:
+        importance_df = pd.DataFrame({
+            "Feature": feature_names,
+            "Importance": importance_values
+        }).sort_values("Importance", ascending=False).reset_index(drop=True)
+
+        st.caption(f"📌 {importance_type}")
+
+        # --- Let user choose how many top features to view ---
+        top_n = st.slider("Number of top features to display", min_value=5, max_value=min(30, len(importance_df)), value=15)
+        top_features = importance_df.head(top_n).sort_values("Importance", ascending=True)  # ascending for horizontal bar order
+
+        fig = px.bar(
+            top_features,
+            x="Importance",
+            y="Feature",
+            orientation="h",
+            title=f"Top {top_n} Most Important Features",
+            color="Importance",
+            color_continuous_scale="Blues",
+        )
+        fig.update_layout(
+            yaxis_title="",
+            xaxis_title="Importance Score",
+            height=max(400, top_n * 30),
+            coloraxis_showscale=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # --- Auto-generated plain-English insight for top 3 features ---
+        st.markdown("#### 🔑 Key Takeaways")
+        top_3 = importance_df.head(3)["Feature"].tolist()
+        readable_names = [f.replace("_", " ") for f in top_3]
+
+        st.markdown(
+            f"The three strongest churn signals in the deployed model are "
+            f"**{readable_names[0]}**, **{readable_names[1]}**, and **{readable_names[2]}**. "
+            f"These features consistently separate customers who churn from those who "
+            f"stay, and should be prioritized in any retention strategy or dashboard "
+            f"monitoring at-risk accounts."
+        )
+
+        # --- Full importance table (expandable, for completeness) ---
+        with st.expander("📋 View Full Feature Importance Table"):
+            st.dataframe(importance_df, use_container_width=True)
