@@ -42,21 +42,72 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# --- Custom CSS for polish beyond native theming ---
+st.markdown("""
+<style>
+    /* Tighter top padding so the app doesn't start too far down the page */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    /* Card-style shadow and rounded corners for st.metric widgets */
+    div[data-testid="stMetric"] {
+        background-color: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        padding: 16px 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Slightly larger, bolder tab labels */
+    button[data-baseweb="tab"] {
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    /* Style the primary predict/run buttons with more presence */
+    div.stButton > button, div.stFormSubmitButton > button {
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+    }
+
+    /* Sidebar background slightly distinct from main content */
+    section[data-testid="stSidebar"] {
+        background-color: #F8F9FB;
+        border-right: 1px solid #E5E7EB;
+    }
+
+    /* Footer styling */
+    .app-footer {
+        text-align: center;
+        color: #9CA3AF;
+        font-size: 13px;
+        padding: 24px 0 8px 0;
+        border-top: 1px solid #E5E7EB;
+        margin-top: 32px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # --- Load cached artifacts and data once ---
-artifacts = get_artifacts()
-df = get_processed_dataset()
+# --- Load cached artifacts and data once ---
+with st.spinner("Loading model and data..."):
+    artifacts = get_artifacts()
+    df = get_processed_dataset()
 
 # --- Sidebar branding ---
 with st.sidebar:
     st.title("📉 Churn Predictor")
-    st.markdown("---")
+    st.divider()
     st.markdown(
         "**About this app**\n\n"
         "An end-to-end ML system that predicts telecom customer churn "
         "using Logistic Regression, Decision Tree, Random Forest, and "
         "XGBoost — with a full analytics dashboard and prediction tools."
     )
-    st.markdown("---")
+    st.divider()
     st.markdown(f"**Model in use:** `{type(artifacts['model']).__name__}`")
     st.markdown(f"**Total records:** {df.shape[0]:,}")
 
@@ -88,7 +139,7 @@ with tab_dashboard:
     col3.metric("Avg. Tenure", f"{avg_tenure:.1f} months")
     col4.metric("Avg. Monthly Charge", f"${avg_monthly_charge:.2f}")
 
-    st.markdown("---")
+    st.divider()
 
     # --- Row 1: Target distribution + a categorical driver ---
     col_a, col_b = st.columns(2)
@@ -194,7 +245,7 @@ with tab_single:
 
         result = predict_single(customer_data, artifacts)
 
-        st.markdown("---")
+        st.divider()
         st.markdown("### Prediction Result")
 
         r1, r2, r3 = st.columns(3)
@@ -391,3 +442,14 @@ with tab_importance:
         # --- Full importance table (expandable, for completeness) ---
         with st.expander("📋 View Full Feature Importance Table"):
             st.dataframe(importance_df, use_container_width=True)
+
+# --- Footer ---
+st.markdown(
+    """
+    <div class="app-footer">
+        Built with Python, scikit-learn, XGBoost & Streamlit ·
+        <a href="https://github.com/prabha2903/customer-churn-prediction" target="_blank">View on GitHub</a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
